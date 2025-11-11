@@ -1,0 +1,10 @@
+flask==3.0.0
+flask-cors==4.0.0
+numpy==1.26.2
+werkzeug==3.0.1
+
+# Optional but recommended for production:
+# librosa==0.10.1  # For advanced audio analysis
+# openai-whisper==20231117  # For speech-to-text
+# opencv-python==4.8.1.78  # For video/motion analysis
+# torch==2.1.1  # Required for Whisper
