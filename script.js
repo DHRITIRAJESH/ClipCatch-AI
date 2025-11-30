@@ -299,9 +299,6 @@ function createClipCard(clip) {
             <div class="clip-title">
                 <i class="fas fa-video"></i> Clip #${clip.index}
             </div>
-            <div class="clip-score">
-                <i class="fas fa-fire"></i> ${score}%
-            </div>
         </div>
         <div class="clip-info">
             <p><strong>Time:</strong> ${formatTime(start)} - ${formatTime(end)}</p>
