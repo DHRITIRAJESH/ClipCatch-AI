@@ -481,6 +481,124 @@ def download_clip(job_id, clip_name):
     
     return send_file(clip_path, as_attachment=True, download_name=f'clipcatch_viral_clip_{clip_index}.mp4')
 
+@app.route('/api/stitch/<job_id>', methods=['POST'])
+def stitch_clips(job_id):
+    """Stitch all generated clips into a single video in chronological order"""
+    output_folder = os.path.join(app.config['OUTPUT_FOLDER'], job_id)
+    
+    if not os.path.exists(output_folder):
+        return jsonify({'error': 'No clips found for this job'}), 404
+    
+    # Get all clip files
+    clip_files = [f for f in os.listdir(output_folder) if f.startswith('clip_') and f.endswith('.mp4')]
+    
+    if not clip_files:
+        return jsonify({'error': 'No clips found to stitch'}), 404
+    
+    # Get the clip metadata from analysis progress to sort by start time
+    clips_metadata = []
+    if job_id in analysis_progress and 'clips' in analysis_progress[job_id]:
+        clips_metadata = analysis_progress[job_id]['clips']
+        # Sort by start time to ensure chronological order
+        clips_metadata.sort(key=lambda x: x['start'])
+        
+        # Remove overlapping clips - keep earlier clips and skip later overlapping ones
+        non_overlapping_clips = []
+        for clip in clips_metadata:
+            clip_start = clip['start']
+            clip_end = clip['end']
+            
+            # Check if this clip overlaps with any already added clip
+            has_overlap = False
+            for added_clip in non_overlapping_clips:
+                added_start = added_clip['start']
+                added_end = added_clip['end']
+                
+                # Check for overlap
+                if (clip_start < added_end and clip_end > added_start):
+                    has_overlap = True
+                    break
+            
+            # Only add if no overlap
+            if not has_overlap:
+                non_overlapping_clips.append(clip)
+        
+        # Create ordered list of clip files based on non-overlapping clips
+        ordered_files = [f"clip_{clip['index']}.mp4" for clip in non_overlapping_clips if f"clip_{clip['index']}.mp4" in clip_files]
+    else:
+        # Fallback: just use alphabetical order if metadata not available
+        ordered_files = sorted(clip_files)
+    
+    try:
+        # Create a file list for ffmpeg concat
+        concat_file = os.path.join(output_folder, 'concat_list.txt')
+        with open(concat_file, 'w') as f:
+            for clip_file in ordered_files:
+                clip_path = os.path.join(output_folder, clip_file)
+                # Convert to absolute path and normalize for Windows
+                clip_path = os.path.abspath(clip_path)
+                # Escape single quotes and backslashes for ffmpeg
+                clip_path = clip_path.replace('\\', '/').replace("'", "\\'")
+                f.write(f"file '{clip_path}'\n")
+        
+        # Output stitched video
+        stitched_file = os.path.join(output_folder, 'stitched_video.mp4')
+        
+        # Use ffmpeg to concatenate videos
+        command = [
+            'ffmpeg',
+            '-f', 'concat',
+            '-safe', '0',
+            '-i', concat_file,
+            '-c', 'copy',
+            '-y',  # Overwrite output file if exists
+            stitched_file
+        ]
+        
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            timeout=300  # 5 minute timeout
+        )
+        
+        if result.returncode != 0:
+            # If direct copy fails, try re-encoding
+            command = [
+                'ffmpeg',
+                '-f', 'concat',
+                '-safe', '0',
+                '-i', concat_file,
+                '-c:v', 'libx264',
+                '-c:a', 'aac',
+                '-y',
+                stitched_file
+            ]
+            
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                timeout=300
+            )
+            
+            if result.returncode != 0:
+                raise Exception(f'FFmpeg error: {result.stderr}')
+        
+        # Clean up concat file
+        os.remove(concat_file)
+        
+        return jsonify({
+            'message': 'Clips stitched successfully',
+            'filename': 'stitched_video.mp4',
+            'clip_count': len(clip_files)
+        })
+        
+    except subprocess.TimeoutExpired:
+        return jsonify({'error': 'Stitching process timed out'}), 500
+    except Exception as e:
+        return jsonify({'error': f'Failed to stitch clips: {str(e)}'}), 500
+
 @app.route('/api/cleanup/<job_id>', methods=['DELETE'])
 def cleanup(job_id):
     """Cleanup uploaded video and generated clips"""
@@ -514,6 +632,7 @@ if __name__ == '__main__':
     print("  POST   /api/analyze     - Start analysis")
     print("  GET    /api/progress    - Get progress")
     print("  GET    /api/download    - Download clip")
+    print("  POST   /api/stitch      - Stitch all clips")
     print("  DELETE /api/cleanup     - Cleanup files")
     print("\n" + "=" * 50)
     

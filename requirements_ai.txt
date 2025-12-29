@@ -1,0 +1,21 @@
+# Context-Aware Viral Clip Detection - Requirements
+
+# Core Flask
+flask==3.0.0
+flask-cors==4.0.0
+werkzeug==3.0.1
+
+# Scientific Computing
+numpy==1.26.2
+
+# Computer Vision (for visual feature extraction)
+opencv-python==4.8.1.78
+
+# Note: The following are optional but recommended for production:
+# - For audio analysis: pip install librosa soundfile
+# - For advanced ASR: pip install openai-whisper faster-whisper
+# - For ML embeddings: pip install sentence-transformers torch
+# - For topic modeling: pip install bertopic
+
+# The current implementation works with just the above core dependencies
+# using numpy-based audio/visual processing and mock transcription.

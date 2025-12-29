@@ -421,6 +421,33 @@ textarea:focus {
     cursor: not-allowed;
 }
 
+/* Stitch Button */
+.btn-stitch {
+    background: var(--gradient-3);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 5px 20px rgba(79, 172, 254, 0.4);
+}
+
+.btn-stitch:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(79, 172, 254, 0.6);
+}
+
+.btn-stitch:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 /* Loading */
 .loading {
     margin-top: 30px;

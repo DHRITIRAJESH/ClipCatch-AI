@@ -24,6 +24,7 @@ const progressText = document.getElementById('progressText');
 const clipCountSlider = document.getElementById('clipCount');
 const clipCountValue = document.getElementById('clipCountValue');
 const durationBtns = document.querySelectorAll('.duration-btn');
+const stitchBtn = document.getElementById('stitchBtn');
 
 // Drag and drop functionality
 uploadArea.addEventListener('dragover', (e) => {
@@ -271,6 +272,11 @@ function displayResults(clips) {
         const clipCard = createClipCard(clip);
         clipsGrid.appendChild(clipCard);
     });
+    
+    // Show stitch button
+    if (stitchBtn) {
+        stitchBtn.style.display = 'inline-flex';
+    }
     
     console.log('Final clipsGrid HTML:', clipsGrid.innerHTML.substring(0, 500)); // Show first 500 chars
 }
@@ -531,6 +537,57 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+// Stitch all clips into one video
+if (stitchBtn) {
+    stitchBtn.addEventListener('click', async () => {
+        if (!currentJobId) {
+            showNotification('No clips available to stitch', 'error');
+            return;
+        }
+        
+        stitchBtn.disabled = true;
+        stitchBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Stitching...';
+        showNotification('Stitching all clips together...', 'info');
+        
+        try {
+            const response = await fetch(`${API_URL}/stitch/${currentJobId}`, {
+                method: 'POST'
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || 'Stitch failed');
+            }
+            
+            const data = await response.json();
+            showNotification('Clips stitched successfully!', 'success');
+            
+            // Download the stitched video
+            const downloadResponse = await fetch(`${API_URL}/download/${currentJobId}/${data.filename}`);
+            if (!downloadResponse.ok) throw new Error('Download failed');
+            
+            const blob = await downloadResponse.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `clipcatch_stitched_${currentJobId}.mp4`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            showNotification('Stitched video downloaded!', 'success');
+            
+        } catch (error) {
+            showNotification(`Stitch failed: ${error.message}`, 'error');
+            console.error('Stitch error:', error);
+        } finally {
+            stitchBtn.disabled = false;
+            stitchBtn.innerHTML = '<i class="fas fa-film"></i> Stitch All Clips';
+        }
+    });
+}
 
 // Initialize
 console.log('ClipCatch AI initialized successfully!');
